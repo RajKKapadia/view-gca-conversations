@@ -106,22 +106,55 @@ function parseInteraction(interaction: any, conversationId: string, index: numbe
   return messages;
 }
 
-export async function listConversations(): Promise<Session[]> {
+export async function listConversations(
+  startDate?: string | null,
+  endDate?: string | null,
+  pageToken?: string | null
+): Promise<{ sessions: Session[]; nextPageToken?: string }> {
   const { projectId, location, agentId } = getConfig();
   const client = await getAuthClient();
   const apiEndpoint = getApiEndpoint(location);
 
   const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
-  // Use v3beta1 for conversations API
-  const url = `${apiEndpoint}/v3beta1/${parent}/conversations?pageSize=100`;
+  
+  // Note: Dialogflow Conversations API doesn't support filtering by startTime or createTime
+  // (conversations don't have createTime field). We fetch all conversations and filter client-side.
+  let url = `${apiEndpoint}/v3beta1/${parent}/conversations?pageSize=100`;
+  
+  // Add pageToken if provided for pagination
+  if (pageToken) {
+    url += `&pageToken=${encodeURIComponent(pageToken)}`;
+  }
 
   const response = await client.request({ url });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = response.data as any;
-  const conversations = data.conversations || [];
+  let conversations = data.conversations || [];
+  const nextPageToken = data.nextPageToken;
+
+  // Client-side filtering by date (since API doesn't support filtering by startTime)
+  if (startDate || endDate) {
+    conversations = conversations.filter((conv: any) => {
+      if (!conv.startTime) return false;
+      
+      const convStartTime = new Date(conv.startTime).getTime();
+      
+      if (startDate) {
+        const filterStart = new Date(startDate).getTime();
+        if (convStartTime < filterStart) return false;
+      }
+      
+      if (endDate) {
+        const filterEnd = new Date(endDate).getTime();
+        if (convStartTime >= filterEnd) return false;
+      }
+      
+      return true;
+    });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return conversations.map((conv: any) => {
+  const sessions = conversations.map((conv: any) => {
     const name = conv.name || "";
     const id = name.split("/").pop() || "";
 
@@ -157,6 +190,11 @@ export async function listConversations(): Promise<Session[]> {
       channel,
     };
   });
+
+  return {
+    sessions,
+    nextPageToken,
+  };
 }
 
 export async function getConversation(

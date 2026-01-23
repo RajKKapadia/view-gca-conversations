@@ -127,6 +127,24 @@ function DeleteIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
 export default function ConversationHistory() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -135,22 +153,87 @@ export default function ConversationHistory() {
   const [loading, setLoading] = useState(true);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Date filter state
+  const [dateFilterType, setDateFilterType] = useState<'single' | 'range'>('single');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  
+  // Pagination state
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchSessions();
   }, []);
 
-  async function fetchSessions() {
+  async function fetchSessions(pageToken?: string | null) {
     try {
-      setLoading(true);
-      const response = await fetch("/api/sessions");
+      if (pageToken) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      // Build query parameters
+      let url = '/api/sessions';
+      const params = new URLSearchParams();
+      
+      if (dateFilterType === 'single' && selectedDate) {
+        // For single date, set start and end to cover the full day
+        const start = new Date(selectedDate);
+        const end = new Date(selectedDate);
+        end.setDate(end.getDate() + 1);
+        
+        params.append('startDate', start.toISOString());
+        params.append('endDate', end.toISOString());
+      } else if (dateFilterType === 'range' && startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setDate(end.getDate() + 1); // Include the end date
+        
+        params.append('startDate', start.toISOString());
+        params.append('endDate', end.toISOString());
+      }
+      
+      // Add page token if provided (for pagination)
+      if (pageToken) {
+        params.append('pageToken', pageToken);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch sessions");
       const data = await response.json();
-      setSessions(data);
+      
+      // Ensure data.sessions is an array (handle both old and new response formats)
+      const newSessions = Array.isArray(data) ? data : (data.sessions || []);
+      
+      // If loading more, append to existing sessions; otherwise replace
+      if (pageToken) {
+        setSessions(prev => [...prev, ...newSessions]);
+      } else {
+        setSessions(newSessions);
+      }
+      
+      // Store the next page token (only present in new format)
+      setNextPageToken(data.nextPageToken || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  }
+  
+  function loadMoreSessions() {
+    if (nextPageToken && !loadingMore) {
+      fetchSessions(nextPageToken);
     }
   }
 
@@ -175,6 +258,34 @@ export default function ConversationHistory() {
     setConversation(null);
   }
 
+  function handleApplyDateFilter() {
+    fetchSessions();
+  }
+
+  async function handleClearDateFilter() {
+    // Clear the date filter state
+    setSelectedDate('');
+    setStartDate('');
+    setEndDate('');
+    
+    // Fetch all sessions without date filter
+    try {
+      setLoading(true);
+      const response = await fetch('/api/sessions');
+      if (!response.ok) throw new Error("Failed to fetch sessions");
+      const data = await response.json();
+      
+      // Handle new response format
+      const newSessions = Array.isArray(data) ? data : (data.sessions || []);
+      setSessions(newSessions);
+      setNextPageToken(data.nextPageToken || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredSessions = sessions.filter(
     (session) =>
       session.id.toLowerCase().includes(filter.toLowerCase()) ||
@@ -188,10 +299,119 @@ export default function ConversationHistory() {
         className={`${selectedSession ? "w-1/2 border-r border-[#dadce0]" : "w-full"} flex flex-col bg-white transition-all duration-300`}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#dadce0] flex items-center min-h-[77px]">
-          <h1 className="text-xl font-normal text-[#202124]">
-            Conversation History
-          </h1>
+        <div className="px-6 py-4 border-b border-[#dadce0] min-h-[77px]">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-normal text-[#202124]">
+              Conversation History
+            </h1>
+            <button
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-[#1a73e8] hover:bg-[#f1f3f4] rounded transition-colors"
+            >
+              <CalendarIcon />
+              Date Filter
+            </button>
+          </div>
+          
+          {/* Date Filter Panel */}
+          {showDateFilter && (
+            <div className="mt-4 p-4 bg-[#f8f9fa] rounded border border-[#dadce0]">
+              {/* Filter Type Toggle */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setDateFilterType('single')}
+                  className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                    dateFilterType === 'single'
+                      ? 'bg-[#1a73e8] text-white'
+                      : 'bg-white text-[#5f6368] hover:bg-[#e8f0fe]'
+                  }`}
+                >
+                  Single Date
+                </button>
+                <button
+                  onClick={() => setDateFilterType('range')}
+                  className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                    dateFilterType === 'range'
+                      ? 'bg-[#1a73e8] text-white'
+                      : 'bg-white text-[#5f6368] hover:bg-[#e8f0fe]'
+                  }`}
+                >
+                  Date Range
+                </button>
+              </div>
+              
+              {/* Date Input(s) */}
+              <div className="flex items-center gap-2">
+                {dateFilterType === 'single' ? (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="px-3 py-2 text-sm border border-[#dadce0] rounded focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
+                  />
+                ) : (
+                  <>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      placeholder="Start date"
+                      className="px-3 py-2 text-sm border border-[#dadce0] rounded focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
+                    />
+                    <span className="text-[#5f6368]">to</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      placeholder="End date"
+                      className="px-3 py-2 text-sm border border-[#dadce0] rounded focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
+                    />
+                  </>
+                )}
+                
+                {/* Action Buttons */}
+                <button
+                  onClick={handleApplyDateFilter}
+                  disabled={
+                    (dateFilterType === 'single' && !selectedDate) ||
+                    (dateFilterType === 'range' && (!startDate || !endDate))
+                  }
+                  className="px-4 py-2 text-sm bg-[#1a73e8] text-white rounded hover:bg-[#1557b0] disabled:bg-[#dadce0] disabled:cursor-not-allowed transition-colors"
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={handleClearDateFilter}
+                  className="px-4 py-2 text-sm text-[#5f6368] bg-white border border-[#dadce0] rounded hover:bg-[#f1f3f4] transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+              
+              {/* Active Filter Indicator */}
+              {((dateFilterType === 'single' && selectedDate) ||
+                (dateFilterType === 'range' && startDate && endDate)) && (
+                <div className="mt-3 text-xs text-[#5f6368]">
+                  Active filter:{' '}
+                  {dateFilterType === 'single'
+                    ? new Date(selectedDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : `${new Date(startDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })} - ${new Date(endDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}`}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -241,6 +461,26 @@ export default function ConversationHistory() {
                 ))}
               </tbody>
             </table>
+          )}
+          
+          {/* Load More Button */}
+          {!loading && !error && filteredSessions.length > 0 && nextPageToken && (
+            <div className="flex justify-center py-4">
+              <button
+                onClick={loadMoreSessions}
+                disabled={loadingMore}
+                className="px-6 py-2 text-sm bg-[#1a73e8] text-white rounded hover:bg-[#1557b0] disabled:bg-[#dadce0] disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {loadingMore ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Loading...
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </button>
+            </div>
           )}
 
           {!loading && !error && filteredSessions.length === 0 && (
