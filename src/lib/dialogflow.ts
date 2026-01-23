@@ -44,25 +44,7 @@ function getApiEndpoint(location: string): string {
 function parseInteraction(interaction: any, conversationId: string, index: number): Message[] {
   const messages: Message[] = [];
 
-  // User input
-  const userText =
-    interaction.request?.queryInput?.text?.text ||
-    interaction.request?.queryInput?.intent?.intent;
-
-  if (userText) {
-    const requestTime = interaction.requestTime
-      ? new Date(interaction.requestTime).toISOString()
-      : "";
-
-    messages.push({
-      id: `${conversationId}-user-${index}`,
-      role: "user",
-      text: userText,
-      timestamp: requestTime,
-    });
-  }
-
-  // Agent response
+  // Agent response (comes first in conversation flow)
   if (interaction.response?.queryResult) {
     const queryResult = interaction.response.queryResult;
     const responseTime = interaction.responseTime
@@ -101,6 +83,24 @@ function parseInteraction(interaction: any, conversationId: string, index: numbe
         playbookName: playbookName ? playbookName.split("/").pop() : undefined,
       });
     }
+  }
+
+  // User input (comes after agent's prompt/response in conversation flow)
+  const userText =
+    interaction.request?.queryInput?.text?.text ||
+    interaction.request?.queryInput?.intent?.intent;
+
+  if (userText) {
+    const requestTime = interaction.requestTime
+      ? new Date(interaction.requestTime).toISOString()
+      : "";
+
+    messages.push({
+      id: `${conversationId}-user-${index}`,
+      role: "user",
+      text: userText,
+      timestamp: requestTime,
+    });
   }
 
   return messages;
@@ -142,7 +142,7 @@ export async function listConversations(): Promise<Session[]> {
     }
 
     // Count turns (interactions)
-    const turns = conv.interactions?.length || 0;
+    const turns = conv.metrics?.interactionCount || 0;
 
     // Determine channel
     const environment = conv.environment || "";

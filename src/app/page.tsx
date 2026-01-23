@@ -188,51 +188,10 @@ export default function ConversationHistory() {
         className={`${selectedSession ? "w-1/2 border-r border-[#dadce0]" : "w-full"} flex flex-col bg-white transition-all duration-300`}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#dadce0]">
+        <div className="px-6 py-4 border-b border-[#dadce0] flex items-center min-h-[77px]">
           <h1 className="text-xl font-normal text-[#202124]">
             Conversation History
           </h1>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-[#dadce0]">
-          <button className="px-6 py-3 text-sm font-medium text-[#1a73e8] border-b-2 border-[#1a73e8]">
-            Conversations
-          </button>
-          <button className="px-6 py-3 text-sm font-medium text-[#5f6368] hover:text-[#202124]">
-            Flow Analysis - Table
-          </button>
-          <button className="px-6 py-3 text-sm font-medium text-[#5f6368] hover:text-[#202124]">
-            Flow Analysis - Graph
-          </button>
-        </div>
-
-        {/* Description */}
-        <div className="px-6 py-4 text-sm text-[#5f6368]">
-          The conversation history tool provides an interface for browsing and
-          analyzing actual production conversations between your app and
-          end-users.{" "}
-          <a href="#" className="text-[#1a73e8] hover:underline">
-            Learn more
-          </a>
-        </div>
-
-        {/* Filter */}
-        <div className="px-6 pb-4 flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-2 border border-[#dadce0] rounded-md flex-1 max-w-2xl bg-white">
-            <FilterIcon />
-            <span className="text-sm text-[#5f6368]">Filter</span>
-            <input
-              type="text"
-              placeholder="Filter conversations by conversation ID, display name, or turn ID"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="flex-1 outline-none text-sm bg-transparent"
-            />
-          </div>
-          <button className="text-sm text-[#1a73e8] hover:underline whitespace-nowrap">
-            Export all conversations
-          </button>
         </div>
 
         {/* Table */}
@@ -246,15 +205,13 @@ export default function ConversationHistory() {
               {error}
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full mt-4">
               <thead>
                 <tr className="text-left text-xs font-medium text-[#5f6368] uppercase tracking-wider">
                   <th className="pb-3 pr-4">Session Id</th>
                   <th className="pb-3 pr-4">Start time</th>
-                  <th className="pb-3 pr-4">Duration</th>
                   <th className="pb-3 pr-4">Turns</th>
                   <th className="pb-3 pr-4">Channel</th>
-                  <th className="pb-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -275,21 +232,10 @@ export default function ConversationHistory() {
                       {formatDate(session.startTime)}
                     </td>
                     <td className="py-3 pr-4 text-sm text-[#1a73e8]">
-                      {session.duration}
-                    </td>
-                    <td className="py-3 pr-4 text-sm text-[#1a73e8]">
                       {session.turns}
                     </td>
                     <td className="py-3 pr-4 text-sm text-[#1a73e8]">
                       {session.channel}
-                    </td>
-                    <td className="py-3">
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <DeleteIcon />
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -309,7 +255,7 @@ export default function ConversationHistory() {
       {selectedSession && (
         <div className="w-1/2 flex flex-col bg-white">
           {/* Header */}
-          <div className="flex items-start justify-between px-6 py-4 border-b border-[#dadce0]">
+          <div className="flex items-center px-6 py-4 border-b border-[#dadce0] min-h-[70px]">
             <div className="flex items-start gap-3">
               <button
                 onClick={handleCloseConversation}
@@ -326,52 +272,6 @@ export default function ConversationHistory() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                </svg>
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div className="flex items-center gap-4 px-6 py-3 border-b border-[#dadce0]">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#202124]">Invocations</span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-            <button className="flex items-center gap-1 text-sm text-[#1a73e8] hover:underline">
-              <span>+</span> Save as example
-            </button>
           </div>
 
           {/* Messages */}
@@ -382,9 +282,9 @@ export default function ConversationHistory() {
               </div>
             ) : conversation ? (
               <div className="space-y-6">
-                {conversation.messages.map((message: Message) => (
-                  <div key={message.id} className="flex gap-3">
-                    <div className="flex-shrink-0 mt-1">
+                {[...conversation.messages].reverse().map((message: Message) => (
+                  <div key={message.id} className="flex gap-3 items-start">
+                    <div className="flex-shrink-0">
                       {message.role === "user" ? (
                         <div className="w-6 h-6 rounded-full bg-[#f1f3f4] flex items-center justify-center">
                           <UserIcon />
@@ -396,16 +296,6 @@ export default function ConversationHistory() {
                       )}
                     </div>
                     <div className="flex-1">
-                      {message.playbookName && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-[#202124]">
-                            {message.playbookName}
-                          </span>
-                          <span className="text-xs text-[#5f6368] px-2 py-0.5 bg-[#f1f3f4] rounded">
-                            Routine Playbook
-                          </span>
-                        </div>
-                      )}
                       <div
                         className={`text-sm leading-relaxed ${
                           message.role === "user"
