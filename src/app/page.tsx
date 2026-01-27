@@ -192,6 +192,19 @@ export default function ConversationHistory() {
     fetchSessions();
   }, []);
 
+  // Auto-fetch conversation every 5 minutes when a session is selected
+  useEffect(() => {
+    if (!selectedSession) return;
+
+    // Set up interval to refresh conversation every 5 minutes (300000 ms)
+    const intervalId = setInterval(() => {
+      fetchConversation(selectedSession.id, false);
+    }, 300000);
+
+    // Clean up interval on unmount or when session changes
+    return () => clearInterval(intervalId);
+  }, [selectedSession]);
+
   async function fetchSessions(pageToken?: string | null) {
     try {
       if (pageToken) {
@@ -260,11 +273,12 @@ export default function ConversationHistory() {
     }
   }
 
-  async function handleSessionClick(session: Session) {
-    setSelectedSession(session);
-    setConversationLoading(true);
+  async function fetchConversation(sessionId: string, showLoading = true) {
+    if (showLoading) {
+      setConversationLoading(true);
+    }
     try {
-      const response = await fetch(`/api/conversations/${session.id}`);
+      const response = await fetch(`/api/conversations/${sessionId}`);
       if (!response.ok) throw new Error("Failed to fetch conversation");
       const data = await response.json();
       setConversation(data);
@@ -272,8 +286,15 @@ export default function ConversationHistory() {
       console.error("Error fetching conversation:", err);
       setConversation(null);
     } finally {
-      setConversationLoading(false);
+      if (showLoading) {
+        setConversationLoading(false);
+      }
     }
+  }
+
+  async function handleSessionClick(session: Session) {
+    setSelectedSession(session);
+    await fetchConversation(session.id, true);
   }
 
   function handleCloseConversation() {
