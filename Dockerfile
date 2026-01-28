@@ -2,8 +2,8 @@
     FROM node:20-alpine AS deps
     WORKDIR /app
     
-    # Enable corepack so pnpm/yarn can work if you use them
-    RUN corepack enable
+    # Install pnpm directly using npm
+    RUN npm install -g pnpm@latest
     
     # Copy only lockfiles first for better caching
     COPY package.json ./
@@ -19,7 +19,7 @@
     # ---------- build ----------
     FROM node:20-alpine AS builder
     WORKDIR /app
-    RUN corepack enable
+    RUN npm install -g pnpm@9.15.4
     
     COPY --from=deps /app/node_modules ./node_modules
     COPY . .
