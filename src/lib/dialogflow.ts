@@ -1,5 +1,6 @@
 import { GoogleAuth } from "google-auth-library";
 import { Session, Conversation, Message } from "@/types/conversation";
+import credentials from "next-auth/providers/credentials";
 
 function getCredentials() {
   const credentialsJson = process.env.GCP_SERVICE_ACCOUNT_JSON;
@@ -7,6 +8,24 @@ function getCredentials() {
     throw new Error("GCP_SERVICE_ACCOUNT_JSON environment variable is not set");
   }
   return JSON.parse(credentialsJson);
+}
+
+async function getAuthClient() {
+  if (process.env.NODE_ENV === "development") {
+    const credentials = getCredentials();
+    const auth = new GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
+
+    return auth.getClient();
+  } else {
+    const auth = new GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
+
+    return auth.getClient();
+  }
 }
 
 function getConfig() {
@@ -21,17 +40,6 @@ function getConfig() {
   }
 
   return { projectId, location, agentId };
-}
-
-async function getAuthClient() {
-  const credentials = getCredentials();
-
-  const auth = new GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-  });
-
-  return auth.getClient();
 }
 
 function getApiEndpoint(location: string): string {
@@ -116,11 +124,11 @@ export async function listConversations(
   const apiEndpoint = getApiEndpoint(location);
 
   const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
-  
+
   // Note: Dialogflow Conversations API doesn't support filtering by startTime or createTime
   // (conversations don't have createTime field). We fetch all conversations and filter client-side.
   let url = `${apiEndpoint}/v3beta1/${parent}/conversations?pageSize=100`;
-  
+
   // Add pageToken if provided for pagination
   if (pageToken) {
     url += `&pageToken=${encodeURIComponent(pageToken)}`;
@@ -136,19 +144,19 @@ export async function listConversations(
   if (startDate || endDate) {
     conversations = conversations.filter((conv: any) => {
       if (!conv.startTime) return false;
-      
+
       const convStartTime = new Date(conv.startTime).getTime();
-      
+
       if (startDate) {
         const filterStart = new Date(startDate).getTime();
         if (convStartTime < filterStart) return false;
       }
-      
+
       if (endDate) {
         const filterEnd = new Date(endDate).getTime();
         if (convStartTime >= filterEnd) return false;
       }
-      
+
       return true;
     });
   }
